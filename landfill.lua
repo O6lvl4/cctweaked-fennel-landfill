@@ -27,22 +27,89 @@ local function safe_move(direction)
     return attempts > 0
 end
 
--- エンダータートル用テレポート移動
-local function teleport_to(x, y, z)
-    print("テレポート試行: " .. x .. ", " .. y .. ", " .. z)
-    if turtle.teleport then
-        if turtle.teleport(x, y, z) then
-            print("テレポート成功: " .. x .. ", " .. y .. ", " .. z)
-            return true
-        else
-            print("テレポート失敗: " .. x .. ", " .. y .. ", " .. z)
-            return false
-        end
-    else
-        print("警告: エンダータートルではありません。通常移動を試行します")
-        -- 通常のタートルの場合は手動移動
+-- 方向管理システム
+local facing = 0  -- 0=北, 1=東, 2=南, 3=西
+
+local function turn_to(target_facing)
+    while facing ~= target_facing do
+        turtle.turnRight()
+        facing = (facing + 1) % 4
+    end
+end
+
+-- GPS座標移動システム
+local function move_to(target_x, target_y, target_z)
+    print("目標座標: " .. target_x .. ", " .. target_y .. ", " .. target_z)
+    
+    local current_x, current_y, current_z = gps.locate()
+    if not current_x then
+        print("エラー: GPS信号を取得できません")
         return false
     end
+    
+    print("現在座標: " .. current_x .. ", " .. current_y .. ", " .. current_z)
+    
+    -- Y軸移動（高度調整）
+    while current_y < target_y do
+        if not turtle.up() then
+            turtle.digUp()
+            turtle.up()
+        end
+        current_y = current_y + 1
+        os.sleep(0.1)
+    end
+    
+    while current_y > target_y do
+        if not turtle.down() then
+            turtle.digDown()
+            turtle.down()
+        end
+        current_y = current_y - 1
+        os.sleep(0.1)
+    end
+    
+    -- X軸移動
+    while current_x ~= target_x do
+        if current_x < target_x then
+            -- 東向き(+X)
+            turn_to(1)
+        else
+            -- 西向き(-X)
+            turn_to(3)
+        end
+        
+        if not turtle.forward() then
+            turtle.dig()
+            turtle.forward()
+        end
+        
+        -- 座標更新
+        current_x, current_y, current_z = gps.locate()
+        os.sleep(0.1)
+    end
+    
+    -- Z軸移動
+    while current_z ~= target_z do
+        if current_z < target_z then
+            -- 南向き(+Z)
+            turn_to(2)
+        else
+            -- 北向き(-Z)
+            turn_to(0)
+        end
+        
+        if not turtle.forward() then
+            turtle.dig()
+            turtle.forward()
+        end
+        
+        -- 座標更新
+        current_x, current_y, current_z = gps.locate()
+        os.sleep(0.1)
+    end
+    
+    print("目標座標到達: " .. target_x .. ", " .. target_y .. ", " .. target_z)
+    return true
 end
 
 -- ブロック検知関数
@@ -90,7 +157,7 @@ local function refill_dirt()
     end
     
     -- 安全な高度に移動して補給作業
-    teleport_to(pos.x, math.max(pos.y + 5, 100), pos.z)
+    move_to(pos.x, math.max(pos.y + 5, 100), pos.z)
     
     -- エンダーチェストを設置（スロット１にあることを前提）
     turtle.select(1)
@@ -149,9 +216,9 @@ end
 local function process_column(x, z)
     print("列処理開始: x=" .. x .. " z=" .. z)
     
-    -- y63の位置にテレポート（足元をチェック）
-    if not teleport_to(x, TARGET_Y, z) then
-        print("テレポート失敗、列をスキップ")
+    -- y63の位置に移動（足元をチェック）
+    if not move_to(x, TARGET_Y, z) then
+        print("移動失敗、列をスキップ")
         return false
     end
     
@@ -164,7 +231,7 @@ local function process_column(x, z)
     
     -- y62から下に向かって処理
     for y = FILL_Y, 1, -1 do
-        teleport_to(x, y, z)
+        move_to(x, y, z)
         
         -- 足元にブロックがあるかチェック
         local has_block_here, _ = turtle.inspectDown()
@@ -196,14 +263,14 @@ end
 
 -- Y63上のブロッククリア（必要に応じて）
 local function clear_above_y63(x, z)
-    teleport_to(x, TARGET_Y + 1, z)
+    move_to(x, TARGET_Y + 1, z)
     local current_y = TARGET_Y + 1
     
     -- 上方向のブロックを確認・除去
     while current_y < 320 and detect_block("down") do
         dig_block("down")
         current_y = current_y + 1
-        teleport_to(x, current_y, z)
+        move_to(x, current_y, z)
         os.sleep(0.05)
     end
 end
@@ -221,9 +288,9 @@ local function main_leveling()
         print("警告: GPS信号を取得できません")
     end
     
-    -- エンダータートル機能確認
-    if not turtle.teleport then
-        print("エラー: エンダータートルが必要です")
+    -- 基本機能確認
+    if not turtle.forward then
+        print("エラー: タートルが正しく動作していません")
         return
     end
     
