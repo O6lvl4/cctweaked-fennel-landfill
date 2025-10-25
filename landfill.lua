@@ -5,19 +5,44 @@
 local TARGET_Y = 63
 local FILL_Y = 62
 
--- ログ機能
+-- ログ機能（バイナリモード試行）
 local LOG_FILE = "landfill.log"
+local log_buffer = {}
+
 local function log(message)
     local timestamp = textutils.formatTime(os.time(), false)
     local log_message = "[" .. timestamp .. "] " .. message
     print(log_message)
     
-    -- ファイルに書き込み（CCTweaked形式）
-    if fs then
-        local file = fs.open(LOG_FILE, "a")
+    -- メモリにバッファリング
+    table.insert(log_buffer, log_message)
+    
+    -- 10行ごとにファイル書き込み（頻度を下げる）
+    if #log_buffer >= 10 then
+        flush_log()
+    end
+end
+
+local function flush_log()
+    if fs and #log_buffer > 0 then
+        -- バイナリモードで書き込み試行
+        local file = fs.open(LOG_FILE, fs.exists(LOG_FILE) and "ab" or "wb")
         if file then
-            file.writeLine(log_message)
+            for _, line in ipairs(log_buffer) do
+                -- ASCII文字のみ書き込み
+                local ascii_line = ""
+                for i = 1, #line do
+                    local byte = string.byte(line, i)
+                    if byte >= 32 and byte <= 126 then
+                        ascii_line = ascii_line .. string.char(byte)
+                    else
+                        ascii_line = ascii_line .. "?"
+                    end
+                end
+                file.write(ascii_line .. "\n")
+            end
             file.close()
+            log_buffer = {}
         end
     end
 end
@@ -26,6 +51,7 @@ local function clear_log()
     if fs and fs.exists(LOG_FILE) then
         fs.delete(LOG_FILE)
     end
+    log_buffer = {}
 end
 
 -- 座標取得（エンダーモデム/GPS対応）
@@ -348,6 +374,9 @@ local function main()
     log("\n=== Landfill operation complete ===")
     log("Processed columns: " .. count .. "/" .. total)
     log("Completion rate: " .. math.floor((count / total) * 100) .. "%")
+    
+    -- 最終ログフラッシュ
+    flush_log()
 end
 
 -- 実行
@@ -358,6 +387,18 @@ log("EnderModem or GPS server required")
 log("Place EnderChest in slot 1")
 log("Starting in 5 seconds...")
 log("Log file: " .. LOG_FILE .. " saving")
+
+-- 終了時にログをフラッシュ
+local function cleanup()
+    flush_log()
+end
 os.sleep(5)
 
-main()
+-- エラーハンドリング付きでメイン実行
+local ok, err = pcall(main)
+if not ok then
+    log("ERROR: " .. tostring(err))
+    flush_log()
+end
+
+cleanup()
