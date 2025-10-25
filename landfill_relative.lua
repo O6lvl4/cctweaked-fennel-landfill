@@ -12,7 +12,7 @@ local AREA = {
 -- 現在位置追跡
 local position = {
     x = 0,  -- 開始位置を原点とする
-    y = 0,  -- 開始位置を原点とする  
+    y = 63, -- 設置時点でy=63  
     z = 0,  -- 開始位置を原点とする
     facing = 0  -- 0=北, 1=東, 2=南, 3=西
 }
@@ -300,7 +300,8 @@ end
 local function main_leveling()
     print("=== タートル整地システム開始（相対移動版） ===")
     print("範囲: " .. AREA.width .. "x" .. AREA.depth .. " ブロック")
-    print("開始位置を原点(0,0,0)として処理します")
+    print("開始位置: (0, 63, 0) - y=63からスタート")
+    print("現在位置: (" .. position.x .. ", " .. position.y .. ", " .. position.z .. ")")
     
     -- 基本機能確認
     if not turtle.forward then
