@@ -94,11 +94,7 @@ end
 
 -- 列処理（超シンプル）
 local function process_column(x, z)
-    print("列処理開始: (" .. x .. ", " .. z .. ")")
-    print("現在位置: (" .. position.x .. ", " .. position.y .. ", " .. position.z .. ")")
-    
     -- 1. 目標位置のy=63に移動
-    print("目標位置へ移動中...")
     local move_count = 0
     while position.x ~= x or position.z ~= z do
         move_count = move_count + 1
@@ -206,7 +202,7 @@ end
 -- 実行
 print("超シンプル整地システム")
 print("タートルを(-1786, 63, -143)に配置してください")
-print("デバッグモード: 3x3ブロックのみテスト")
+print("本格モード: 500x500ブロックの整地を開始")
 print("エンダーチェストをスロット１に配置")
 print("Ctrl+Tで停止")
 print("5秒後開始...")
