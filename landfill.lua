@@ -114,44 +114,43 @@ local function process_column(x, z)
     
     return_to_63()  -- y=63確保
     
-    -- 2. y=63の下にブロックチェック
-    local has_block, _ = turtle.inspectDown()
-    if has_block then
-        print("y=63下にブロック、スキップ")
-        return false
-    end
+    -- 2. y=63は空気のまま（スキップ条件なし）
+    -- y=62以下を全て土で埋める
     
-    -- 3. y=62から下向きに埋め立て
-    -- y=62に移動
-    safe_down()  -- y=62
+    -- 3. y=62から下向きに全て埋める
+    safe_down()  -- y=62に移動
     
-    -- 下向きに埋め立て
-    for depth = 1, 100 do  -- 最大100ブロック下まで
-        local has_block_below, _ = turtle.inspectDown()
-        if has_block_below then
-            print("底到達、埋め立て完了")
+    -- y=62から底まで、空いている部分を全て土で埋める
+    for depth = 1, 200 do  -- 最大200ブロック下まで
+        -- 現在位置にブロックがない場合は足元に土を配置
+        local has_block_here, _ = turtle.inspectDown()  -- 足元をチェック
+        if not has_block_here then
+            -- 土が必要
+            if not has_dirt() then
+                print("土不足、y=" .. position.y .. "で中断")
+                break
+            end
+            
+            -- 足元に土を配置
+            if select_dirt() then
+                turtle.placeDown()  -- 足元に配置
+                print("土配置: y=" .. (position.y - 1))
+            end
+        end
+        
+        -- 一つ下に移動
+        if not safe_down() then
+            print("下移動失敗、底到達")
             break
         end
         
-        -- 土が必要だが補給は禁止（事前補給前提）
-        if not has_dirt() then
-            print("土不足、この列を中断")
+        -- 深すぎる場合は中断
+        if position.y < -100 then
+            print("深すぎるため中断 y=" .. position.y)
             break
         end
         
-        -- 土を配置
-        if select_dirt() then
-            turtle.placeDown()
-            print("土配置: y=" .. (position.y - 1))
-        end
-        
-        -- 一つ下へ
-        safe_down()
-        
-        if position.y < -50 then
-            print("深すぎ、中断")
-            break
-        end
+        os.sleep(0.02)  -- パフォーマンス向上
     end
     
     return true
