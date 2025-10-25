@@ -4,9 +4,17 @@
 
 ## 使い方
 
+### Luaファイル直接実行（推奨）
 ```bash
 # CCTweaked内で
-wget https://raw.githubusercontent.com/[username]/cctweaked-fennel-landfill/main/landfill.fnl
+wget https://raw.githubusercontent.com/O6lvl4/cctweaked-fennel-landfill/main/landfill.lua
+landfill
+```
+
+### Fennelファイル実行
+```bash
+# CCTweaked内で（Fennelが必要）
+wget https://raw.githubusercontent.com/O6lvl4/cctweaked-fennel-landfill/main/landfill.fnl
 fennel landfill.fnl
 ```
 
