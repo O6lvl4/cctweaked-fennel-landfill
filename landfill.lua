@@ -253,15 +253,44 @@ local function process_col(x, z)
         end
         
         -- 移動後、足元（下）に土を配置
+        slog("Attempting to place dirt below at y=" .. (pos.y - 1))
+        
+        -- 現在選択中のアイテムを確認
+        local current_item = turtle.getItemDetail()
+        if current_item then
+            slog("Current item: " .. current_item.name .. " x" .. current_item.count)
+        else
+            slog("No item selected")
+        end
+        
         if select_dirt() then
+            local dirt_item = turtle.getItemDetail()
+            slog("Selected dirt: " .. (dirt_item and dirt_item.name or "none") .. " count:" .. (dirt_item and dirt_item.count or 0))
+            
+            -- 足元の状況を確認
+            local has_below, below_data = turtle.inspectDown()
+            if has_below and below_data then
+                slog("Block below: " .. below_data.name)
+            else
+                slog("Air below")
+            end
+            
             -- 足元の既存ブロックを除去してから土を配置
             turtle.digDown()  -- 下方のブロックを掘る
-            os.sleep(0.2)
+            os.sleep(0.3)  -- 少し長く待つ
+            
             if turtle.placeDown() then
-                slog("Dirt placed below at y=" .. (pos.y - 1))
+                slog("SUCCESS: Dirt placed below at y=" .. (pos.y - 1))
             else
-                slog("Failed to place dirt below at y=" .. (pos.y - 1))
+                slog("FAILED: Cannot place dirt below at y=" .. (pos.y - 1))
+                -- 失敗の理由を調べる
+                local fuel = turtle.getFuelLevel()
+                slog("Fuel level: " .. tostring(fuel))
+                local item_after = turtle.getItemDetail()
+                slog("Item after attempt: " .. (item_after and item_after.name or "none"))
             end
+        else
+            slog("ERROR: No dirt available to select")
         end
         
         os.sleep(0.05)
