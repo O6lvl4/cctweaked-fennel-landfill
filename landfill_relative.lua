@@ -180,9 +180,8 @@ end
 local function refill_dirt()
     print("土ブロックを補給中...")
     
-    -- 安全な高度に移動
-    local safe_y = math.max(position.y + 10, 100)
-    move_to_relative(position.x, safe_y, position.z)
+    -- y=63で補給作業（高度を変えない）
+    move_to_relative(position.x, 63, position.z)
     
     -- エンダーチェストを設置
     turtle.select(1)
