@@ -349,7 +349,11 @@ end
 local function emergency_stop()
     print("緊急停止 - 現在位置に留まります")
     local pos = get_position()
-    print("現在位置: " .. pos.x .. " " .. pos.y .. " " .. pos.z)
+    if pos then
+        print("現在位置: " .. tostring(pos.x) .. " " .. tostring(pos.y) .. " " .. tostring(pos.z))
+    else
+        print("位置情報を取得できません")
+    end
 end
 
 -- 実行開始
