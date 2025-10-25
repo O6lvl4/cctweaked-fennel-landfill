@@ -41,13 +41,8 @@ local function safe_forward()
     elseif position.facing == 3 then position.x = position.x - 1 end
 end
 
--- y=63に戻る（上昇は最小限）
-local function return_to_63()
-    while position.y < 63 do
-        turtle.up()
-        position.y = position.y + 1
-    end
-end
+-- 完全に上昇禁止の設計に変更
+-- 各列処理の最後にy=63の次の位置に直接移動
 
 -- 土チェック・選択
 local function has_dirt()
@@ -68,9 +63,12 @@ local function select_dirt()
     return false
 end
 
--- 土補給（y=63で実行）
+-- 土補給（y=63でのみ実行、上昇禁止）
 local function refill_dirt()
-    return_to_63()  -- y=63に戻る
+    if position.y ~= 63 then
+        print("エラー: y=63以外での補給は禁止されています")
+        return false
+    end
     print("土補給中...")
     
     turtle.select(1)
@@ -90,6 +88,7 @@ local function refill_dirt()
     turtle.select(1)
     turtle.digDown()
     print("補給完了")
+    return true
 end
 
 -- 列処理（超シンプル）
@@ -134,14 +133,10 @@ local function process_column(x, z)
             break
         end
         
-        -- 土が必要
+        -- 土が必要だが補給は禁止（事前補給前提）
         if not has_dirt() then
-            local save_y = position.y
-            refill_dirt()
-            -- y=62に戻る
-            while position.y > save_y do
-                safe_down()
-            end
+            print("土不足、この列を中断")
+            break
         end
         
         -- 土を配置
