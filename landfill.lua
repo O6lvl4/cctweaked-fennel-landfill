@@ -177,22 +177,35 @@ local function process_col(x, z)
         return false
     end
     
-    -- y=62から開始して下向きに完全埋め立て
-    local start_y = FILL_Y  -- y=62から開始
+    -- y=63から開始して下向きに完全埋め立て
+    local start_y = TARGET_Y  -- y=63から開始
     
-    -- y=62に移動
-    while pos.y > start_y do
-        if not safe_down() then
-            slog("Cannot reach y=62")
-            return false
-        end
+    -- y=63の位置を確認（移動不要）
+    if pos.y ~= start_y then
+        slog("Position error: expected y=63, got y=" .. pos.y)
+        return false
     end
     
-    -- y=62から下に向かって全部埋める
-    local current_y = start_y
+    -- y=63から下に向かって全部埋める（y=62, y=61, ... -64まで）
+    local current_y = start_y  -- y=63から開始
+    
+    -- まず一つ下（y=62）に移動
+    if not safe_down() then
+        slog("Cannot move down from y=63")
+        return false
+    end
+    current_y = current_y - 1  -- y=62
     
     while current_y >= -64 do  -- bedrockまで
-        slog("Checking y=" .. current_y)
+        slog("Processing y=" .. current_y)
+        
+        -- 前方の障害物を除去（移動時の問題解決）
+        local has_front, _ = turtle.inspect()
+        if has_front then
+            slog("Clearing front obstacle")
+            turtle.dig()
+            os.sleep(0.1)
+        end
         
         -- 現在位置（足元）のブロックをチェック
         local has_block_below, block_data = turtle.inspectDown()
@@ -204,12 +217,12 @@ local function process_col(x, z)
                    string.find(block_data.name, "lava") or
                    string.find(block_data.name, "air")) then
                 is_solid = true
-                slog("Solid block found below: " .. block_data.name .. " at y=" .. (current_y - 1))
+                slog("Solid block below: " .. block_data.name .. " at y=" .. (current_y - 1))
             else
-                slog("Liquid/air found below: " .. block_data.name .. " at y=" .. (current_y - 1))
+                slog("Liquid/air below: " .. block_data.name .. " at y=" .. (current_y - 1))
             end
         else
-            slog("Air found below at y=" .. (current_y - 1))
+            slog("Air below at y=" .. (current_y - 1))
         end
         
         -- 足元が空気または液体の場合は土で埋める
@@ -225,18 +238,18 @@ local function process_col(x, z)
             
             -- 土を選択して配置
             if select_dirt() then
-                -- 足元の既存ブロックを除去してから土を配置
+                -- 足元の既存ブロックを強制除去してから土を配置
                 turtle.digDown()
-                os.sleep(0.1)
+                os.sleep(0.2)  -- 少し長めに待つ
                 if turtle.placeDown() then
-                    slog("Dirt placed below at y=" .. (current_y - 1))
+                    slog("Dirt placed at y=" .. (current_y - 1))
                 else
-                    slog("Failed to place dirt below at y=" .. (current_y - 1))
+                    slog("Failed to place dirt at y=" .. (current_y - 1))
                 end
             end
         else
             -- 固体ブロックが見つかった場合、この列の処理終了
-            slog("Solid ground found, stopping column at y=" .. (current_y - 1))
+            slog("Solid ground found at y=" .. (current_y - 1) .. ", stopping column")
             break
         end
         
