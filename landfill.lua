@@ -246,22 +246,22 @@ local function process_col(x, z)
             return false
         end
         
-        -- 現在位置に土を配置
-        if select_dirt() then
-            -- 現在位置のブロックを除去してから土を配置
-            turtle.dig()  -- 前方のブロックを掘る
-            os.sleep(0.2)
-            if turtle.place() then
-                slog("Dirt placed at y=" .. pos.y)
-            else
-                slog("Failed to place dirt at y=" .. pos.y)
-            end
-        end
-        
         -- 一つ上に移動
         if not safe_up() then
             slog("Cannot move up from y=" .. pos.y)
             break
+        end
+        
+        -- 移動後、足元（下）に土を配置
+        if select_dirt() then
+            -- 足元の既存ブロックを除去してから土を配置
+            turtle.digDown()  -- 下方のブロックを掘る
+            os.sleep(0.2)
+            if turtle.placeDown() then
+                slog("Dirt placed below at y=" .. (pos.y - 1))
+            else
+                slog("Failed to place dirt below at y=" .. (pos.y - 1))
+            end
         end
         
         os.sleep(0.05)
