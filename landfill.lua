@@ -5,8 +5,8 @@
 local TARGET_Y = 63
 local FILL_Y = 62
 
--- 位置追跡
-local position = {x = 0, y = 63, z = 0, facing = 0}
+-- 位置追跡（実際の座標）
+local position = {x = -1786, y = 63, z = -143, facing = 0}  -- 北向き
 
 -- 方向制御
 local function turn_right()
@@ -161,17 +161,27 @@ end
 -- メイン処理
 local function main()
     print("=== 超シンプル整地システム ===")
+    print("範囲: (-1786,-143) から (-1287,356) - 500x500ブロック")
+    print("開始位置: (" .. position.x .. ", " .. position.y .. ", " .. position.z .. ") 北向き")
     print("y=63からスタート、上昇禁止")
     
     refill_dirt()
     
     local count = 0
-    for x = 0, 4 do  -- 5x5のテスト範囲
-        for z = 0, 4 do
+    local total = 500 * 500
+    
+    for x = -1786, -1287 do  -- 500ブロック幅
+        for z = -143, 356 do     -- 500ブロック奥行
             if process_column(x, z) then
                 count = count + 1
             end
+            
+            -- 進捗表示
+            if count % 100 == 0 then
+                print("進捗: " .. count .. "/" .. total .. " (" .. math.floor(count/total*100) .. "%)")
+            end
         end
+        print("X=" .. x .. " 完了")
     end
     
     print("完了: " .. count .. "列処理")
@@ -179,8 +189,10 @@ end
 
 -- 実行
 print("超シンプル整地システム")
+print("タートルを(-1786, 63, -143)に配置してください")
+print("エンダーチェストをスロット１に配置")
 print("Ctrl+Tで停止")
-print("3秒後開始...")
-os.sleep(3)
+print("5秒後開始...")
+os.sleep(5)
 
 main()
