@@ -5,13 +5,34 @@
 local TARGET_Y = 63
 local FILL_Y = 62
 
+-- ログ機能
+local LOG_FILE = "landfill.log"
+local function log(message)
+    local timestamp = os.date("%H:%M:%S")
+    local log_message = "[" .. timestamp .. "] " .. message
+    log(log_message)
+    
+    -- ファイルに書き込み
+    local file = fs.open(LOG_FILE, "a")
+    if file then
+        file.writeLine(log_message)
+        file.close()
+    end
+end
+
+local function clear_log()
+    if fs.exists(LOG_FILE) then
+        fs.delete(LOG_FILE)
+    end
+end
+
 -- 座標取得（エンダーモデム/GPS対応）
 local function get_position()
     -- 方法1: エンダーモデムで座標取得
     if commands and commands.getBlockPosition then
         local x, y, z = commands.getBlockPosition()
         if x and y and z then
-            print("エンダーモデムで座標取得: " .. x .. ", " .. y .. ", " .. z)
+            log("エンダーモデムで座標取得: " .. x .. ", " .. y .. ", " .. z)
             return {x = x, y = y, z = z}
         end
     end
@@ -19,12 +40,12 @@ local function get_position()
     -- 方法2: GPSで座標取得
     local x, y, z = gps.locate()
     if x and y and z then
-        print("GPSで座標取得: " .. x .. ", " .. y .. ", " .. z)
+        log("GPSで座標取得: " .. x .. ", " .. y .. ", " .. z)
         return {x = x, y = y, z = z}
     end
     
     -- 両方失敗
-    print("座標取得失敗: エンダーモデムもGPSも利用できません")
+    log("座標取得失敗: エンダーモデムもGPSも利用できません")
     return nil
 end
 
@@ -45,20 +66,20 @@ end
 
 -- GPS座標への移動
 local function move_to_gps(target_x, target_y, target_z)
-    print("目標: (" .. target_x .. ", " .. target_y .. ", " .. target_z .. ")")
+    log("目標: (" .. target_x .. ", " .. target_y .. ", " .. target_z .. ")")
     
     local pos = get_position()
     if not pos then
-        print("GPS信号なし、移動失敗")
+        log("GPS信号なし、移動失敗")
         return false
     end
     
-    print("現在: (" .. pos.x .. ", " .. pos.y .. ", " .. pos.z .. ")")
+    log("現在: (" .. pos.x .. ", " .. pos.y .. ", " .. pos.z .. ")")
     
     -- Y軸移動
     while pos.y < target_y do
         if not safe_move(turtle.up) then
-            print("上移動失敗")
+            log("上移動失敗")
             return false
         end
         pos = get_position()
@@ -68,7 +89,7 @@ local function move_to_gps(target_x, target_y, target_z)
     
     while pos.y > target_y do
         if not safe_move(turtle.down) then
-            print("下移動失敗")
+            log("下移動失敗")
             return false
         end
         pos = get_position()
@@ -87,7 +108,7 @@ local function move_to_gps(target_x, target_y, target_z)
                     turtle.turnLeft()
                     if not safe_move(turtle.forward) then
                         turtle.turnRight()
-                        print("X軸移動失敗")
+                        log("X軸移動失敗")
                         return false
                     end
                 end
@@ -103,7 +124,7 @@ local function move_to_gps(target_x, target_y, target_z)
                     turtle.turnLeft()
                     if not safe_move(turtle.forward) then
                         turtle.turnRight()
-                        print("X軸移動失敗")
+                        log("X軸移動失敗")
                         return false
                     end
                 end
@@ -124,7 +145,7 @@ local function move_to_gps(target_x, target_y, target_z)
                 turtle.turnLeft()
                 if not safe_move(turtle.forward) then
                     turtle.turnRight()
-                    print("Z軸移動失敗")
+                    log("Z軸移動失敗")
                     return false
                 end
             end
@@ -137,7 +158,7 @@ local function move_to_gps(target_x, target_y, target_z)
                     turtle.turnLeft()
                     if not safe_move(turtle.forward) then
                         turtle.turnRight()
-                        print("Z軸移動失敗")
+                        log("Z軸移動失敗")
                         return false
                     end
                 end
@@ -148,7 +169,7 @@ local function move_to_gps(target_x, target_y, target_z)
         os.sleep(0.1)
     end
     
-    print("到達: (" .. (pos and pos.x or "?") .. ", " .. (pos and pos.y or "?") .. ", " .. (pos and pos.z or "?") .. ")")
+    log("到達: (" .. (pos and pos.x or "?") .. ", " .. (pos and pos.y or "?") .. ", " .. (pos and pos.z or "?") .. ")")
     return true
 end
 
@@ -177,7 +198,7 @@ end
 
 -- エンダーチェスト補給
 local function refill_dirt()
-    print("土補給中...")
+    log("土補給中...")
     
     turtle.select(1)
     turtle.placeDown()
@@ -195,17 +216,17 @@ local function refill_dirt()
     
     turtle.select(1)
     turtle.digDown()
-    print("補給完了")
+    log("補給完了")
     return true
 end
 
 -- 列処理（GPS+相対移動ハイブリッド）
 local function process_column(x, z)
-    print("列処理: (" .. x .. ", " .. z .. ")")
+    log("列処理: (" .. x .. ", " .. z .. ")")
     
     -- 1. y=63に移動（GPS使用）
     if not move_to_gps(x, TARGET_Y, z) then
-        print("y=63移動失敗、スキップ")
+        log("y=63移動失敗、スキップ")
         return false
     end
     
@@ -214,7 +235,7 @@ local function process_column(x, z)
     
     -- y=62に下りる
     if not safe_move(turtle.down) then
-        print("初期下降失敗")
+        log("初期下降失敗")
         return false
     end
     current_y = current_y - 1
@@ -226,11 +247,11 @@ local function process_column(x, z)
         if not has_block_below then
             -- 空洞なので土を配置
             if not has_dirt() then
-                print("土不足、y=" .. current_y .. "で中断")
+                log("土不足、y=" .. current_y .. "で中断")
                 -- y=63に戻って補給（上昇のみ）
                 for i = 1, (TARGET_Y - current_y) do
                     if not safe_move(turtle.up) then
-                        print("上昇失敗")
+                        log("上昇失敗")
                         return false
                     end
                 end
@@ -238,7 +259,7 @@ local function process_column(x, z)
                 -- 元の位置に戻る（下降のみ）
                 for i = 1, (TARGET_Y - current_y) do
                     if not safe_move(turtle.down) then
-                        print("下降失敗")
+                        log("下降失敗")
                         return false
                     end
                 end
@@ -246,24 +267,24 @@ local function process_column(x, z)
             
             if select_dirt() then
                 turtle.placeDown()
-                print("土配置: y=" .. (current_y - 1))
+                log("土配置: y=" .. (current_y - 1))
             end
         else
             -- ブロック発見、この深度で終了
-            print("ブロック発見、y=" .. current_y .. "で終了")
+            log("ブロック発見、y=" .. current_y .. "で終了")
             break
         end
         
         -- 一つ下に移動
         if not safe_move(turtle.down) then
-            print("下降失敗、底到達")
+            log("下降失敗、底到達")
             break
         end
         current_y = current_y - 1
         
         -- 深すぎる場合は中断
         if current_y < -64 then
-            print("bedrock到達")
+            log("bedrock到達")
             break
         end
         
@@ -273,7 +294,7 @@ local function process_column(x, z)
     -- 3. y=63に戻る（上昇のみ）
     while current_y < TARGET_Y do
         if not safe_move(turtle.up) then
-            print("上昇失敗")
+            log("上昇失敗")
             break
         end
         current_y = current_y + 1
@@ -284,18 +305,19 @@ end
 
 -- メイン処理
 local function main()
-    print("=== エンダーモデム対応整地システム ===")
-    print("範囲: (-1786,-143) から (-1287,356)")
+    clear_log()
+    log("=== エンダーモデム対応整地システム ===")
+    log("範囲: (-1786,-143) から (-1287,356)")
     
     -- 座標取得確認
     local pos = get_position()
     if not pos then
-        print("エラー: 座標を取得できません")
-        print("エンダーモデムまたはGPSサーバーが必要です")
+        log("エラー: 座標を取得できません")
+        log("エンダーモデムまたはGPSサーバーが必要です")
         return
     end
     
-    print("開始位置: (" .. pos.x .. ", " .. pos.y .. ", " .. pos.z .. ")")
+    log("開始位置: (" .. pos.x .. ", " .. pos.y .. ", " .. pos.z .. ")")
     
     -- 初期補給
     refill_dirt()
@@ -304,7 +326,7 @@ local function main()
     local total = 500 * 500
     
     for x = -1786, -1287 do
-        print("\nX=" .. x .. " 処理開始 (" .. (-1786 - x + 1) .. "/500)")
+        log("\nX=" .. x .. " 処理開始 (" .. (-1786 - x + 1) .. "/500)")
         
         for z = -143, 356 do
             if process_column(x, z) then
@@ -314,23 +336,26 @@ local function main()
             -- 100列ごとに進捗表示
             if count % 100 == 0 then
                 local progress = math.floor((count / total) * 100)
-                print("進捗: " .. count .. "/" .. total .. " (" .. progress .. "%)")
+                log("進捗: " .. count .. "/" .. total .. " (" .. progress .. "%)")
             end
         end
         
-        print("X=" .. x .. " 完了 (累計: " .. count .. "列)")
+        log("X=" .. x .. " 完了 (累計: " .. count .. "列)")
     end
     
-    print("\n=== 整地作業完了 ===")
-    print("処理した列: " .. count .. "/" .. total)
-    print("完了率: " .. math.floor((count / total) * 100) .. "%")
+    log("\n=== 整地作業完了 ===")
+    log("処理した列: " .. count .. "/" .. total)
+    log("完了率: " .. math.floor((count / total) * 100) .. "%")
 end
 
 -- 実行
-print("エンダーモデム対応整地システム")
-print("エンダーモデムまたはGPSサーバーが必要です")
-print("エンダーチェストをスロット1に配置")
-print("5秒後に開始...")
+-- 実行開始メッセージ
+clear_log()
+log("エンダーモデム対応整地システム")
+log("エンダーモデムまたはGPSサーバーが必要です") 
+log("エンダーチェストをスロット1に配置")
+log("5秒後に開始...")
+log("ログファイル: " .. LOG_FILE .. " に保存中")
 os.sleep(5)
 
 main()
