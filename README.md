@@ -1,13 +1,13 @@
-# CCTweaked Enderturtle Leveling
+# CCTweaked Fennel Landfill
 
-エンダータートル用自動整地システム
+エンダータートル用自動埋め立て・整地システム
 
 ## 使い方
 
 ```bash
 # CCTweaked内で
-wget https://raw.githubusercontent.com/[username]/enderturtle-leveling/main/enderturtle-leveling.fnl
-fennel enderturtle-leveling.fnl
+wget https://raw.githubusercontent.com/[username]/cctweaked-fennel-landfill/main/landfill.fnl
+fennel landfill.fnl
 ```
 
 ## 仕様
