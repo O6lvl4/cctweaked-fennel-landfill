@@ -186,19 +186,21 @@ local function process_col(x, z)
         return false
     end
     
-    -- ステップ1: 底まで降りて最下位を見つける
-    slog("Step 1: Finding bottom level")
+    -- ステップ1: 底まで降りて移動距離を記録
+    slog("Step 1: Finding bottom and tracking distance")
+    
+    local start_y = pos.y  -- y=63
+    local descent_count = 0  -- 下降回数をカウント
     
     -- y=62から開始して底まで降りる
     if not safe_down() then
         slog("Cannot move down from y=63")
         return false
     end
+    descent_count = descent_count + 1
     
-    local bottom_y = pos.y  -- 現在はy=62
-    
-    -- 底まで降りる（固体ブロックまたはbedrock到達まで）
-    while bottom_y >= -64 do
+    -- 底まで降りる（移動できなくなるまで）
+    while descent_count < 200 do  -- 最大200ブロック下まで
         local has_block_below, block_data = turtle.inspectDown()
         local is_solid = false
         
@@ -208,93 +210,70 @@ local function process_col(x, z)
                    string.find(block_data.name, "lava") or
                    string.find(block_data.name, "air")) then
                 is_solid = true
-                slog("Found solid ground: " .. block_data.name .. " at y=" .. (bottom_y - 1))
+                slog("Found solid ground: " .. block_data.name .. " at y=" .. (pos.y - 1))
                 break
             else
-                slog("Found liquid/air: " .. block_data.name .. " at y=" .. (bottom_y - 1))
+                slog("Found liquid/air: " .. block_data.name .. " at y=" .. (pos.y - 1))
             end
         else
-            slog("Found air at y=" .. (bottom_y - 1))
+            slog("Found air at y=" .. (pos.y - 1))
         end
         
-        -- まだ空洞なので一つ下に移動
+        -- まだ空洞なので一つ下に移動を試す
         if not safe_down() then
-            slog("Cannot go deeper from y=" .. bottom_y)
+            slog("Cannot go deeper from y=" .. pos.y .. " after " .. descent_count .. " moves")
             break
         end
-        bottom_y = pos.y
+        descent_count = descent_count + 1
         
-        if bottom_y < -64 then
+        if pos.y < -64 then
             slog("Reached bedrock level")
             break
         end
     end
     
-    slog("Bottom found at y=" .. bottom_y .. ", starting fill-up")
+    slog("Descended " .. descent_count .. " blocks, now at y=" .. pos.y)
     
-    -- ステップ2: 底からy=63まで上に向かって埋める
-    slog("Step 2: Filling from bottom to y=63")
+    -- ステップ2: 記録した移動回数分だけ上に移動しながら土を配置
+    slog("Step 2: Filling upward for " .. descent_count .. " levels")
     
-    while pos.y < TARGET_Y do  -- y=63まで
-        slog("Filling level y=" .. pos.y)
+    local filled_count = 0
+    
+    for i = 1, descent_count do
+        slog("Filling level " .. i .. "/" .. descent_count .. " at y=" .. pos.y)
         
         -- 土不足チェック
         if not has_dirt() then
-            slog("No dirt left at y=" .. pos.y)
-            -- 作業中断のため現在位置に留まる
-            slog("Work interrupted due to lack of dirt")
+            slog("No dirt left at level " .. i .. ", filled " .. filled_count .. " blocks")
             return false
         end
         
         -- 一つ上に移動
         if not safe_up() then
-            slog("Cannot move up from y=" .. pos.y)
+            slog("Cannot move up from y=" .. pos.y .. " at level " .. i)
             break
         end
         
         -- 移動後、足元（下）に土を配置
-        slog("Attempting to place dirt below at y=" .. (pos.y - 1))
-        
-        -- 現在選択中のアイテムを確認
-        local current_item = turtle.getItemDetail()
-        if current_item then
-            slog("Current item: " .. current_item.name .. " x" .. current_item.count)
-        else
-            slog("No item selected")
-        end
-        
         if select_dirt() then
-            local dirt_item = turtle.getItemDetail()
-            slog("Selected dirt: " .. (dirt_item and dirt_item.name or "none") .. " count:" .. (dirt_item and dirt_item.count or 0))
-            
-            -- 足元の状況を確認
-            local has_below, below_data = turtle.inspectDown()
-            if has_below and below_data then
-                slog("Block below: " .. below_data.name)
-            else
-                slog("Air below")
-            end
-            
             -- 足元の既存ブロックを除去してから土を配置
             turtle.digDown()  -- 下方のブロックを掘る
-            os.sleep(0.3)  -- 少し長く待つ
+            os.sleep(0.2)
             
             if turtle.placeDown() then
-                slog("SUCCESS: Dirt placed below at y=" .. (pos.y - 1))
+                slog("Dirt placed at y=" .. (pos.y - 1) .. " (level " .. i .. ")")
+                filled_count = filled_count + 1
             else
-                slog("FAILED: Cannot place dirt below at y=" .. (pos.y - 1))
-                -- 失敗の理由を調べる
-                local fuel = turtle.getFuelLevel()
-                slog("Fuel level: " .. tostring(fuel))
-                local item_after = turtle.getItemDetail()
-                slog("Item after attempt: " .. (item_after and item_after.name or "none"))
+                slog("Failed to place dirt at y=" .. (pos.y - 1) .. " (level " .. i .. ")")
             end
         else
-            slog("ERROR: No dirt available to select")
+            slog("No dirt available at level " .. i)
         end
         
         os.sleep(0.05)
     end
+    
+    slog("Filling complete: placed " .. filled_count .. " dirt blocks")
     
     slog("Fill complete, reached y=" .. pos.y)
     
