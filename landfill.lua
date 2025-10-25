@@ -186,88 +186,90 @@ local function process_col(x, z)
         return false
     end
     
-    -- y=63から下に向かって全部埋める（y=62, y=61, ... -64まで）
-    local current_y = start_y  -- y=63から開始
+    -- ステップ1: 底まで降りて最下位を見つける
+    slog("Step 1: Finding bottom level")
     
-    -- まず一つ下（y=62）に移動
+    -- y=62から開始して底まで降りる
     if not safe_down() then
         slog("Cannot move down from y=63")
         return false
     end
-    current_y = current_y - 1  -- y=62
     
-    while current_y >= -64 do  -- bedrockまで
-        slog("Processing y=" .. current_y)
-        
-        -- 前方の障害物を除去（移動時の問題解決）
-        local has_front, _ = turtle.inspect()
-        if has_front then
-            slog("Clearing front obstacle")
-            turtle.dig()
-            os.sleep(0.1)
-        end
-        
-        -- 現在位置（足元）のブロックをチェック
+    local bottom_y = pos.y  -- 現在はy=62
+    
+    -- 底まで降りる（固体ブロックまたはbedrock到達まで）
+    while bottom_y >= -64 do
         local has_block_below, block_data = turtle.inspectDown()
         local is_solid = false
         
         if has_block_below and block_data then
-            -- 液体でない固体ブロックかチェック
+            -- 固体ブロックかチェック（水や溶岩は固体ではない）
             if not (string.find(block_data.name, "water") or 
                    string.find(block_data.name, "lava") or
                    string.find(block_data.name, "air")) then
                 is_solid = true
-                slog("Solid block below: " .. block_data.name .. " at y=" .. (current_y - 1))
+                slog("Found solid ground: " .. block_data.name .. " at y=" .. (bottom_y - 1))
+                break
             else
-                slog("Liquid/air below: " .. block_data.name .. " at y=" .. (current_y - 1))
+                slog("Found liquid/air: " .. block_data.name .. " at y=" .. (bottom_y - 1))
             end
         else
-            slog("Air below at y=" .. (current_y - 1))
+            slog("Found air at y=" .. (bottom_y - 1))
         end
         
-        -- 足元が空気または液体の場合は土で埋める
-        if not is_solid then
-            if not has_dirt() then
-                slog("No dirt left at y=" .. current_y)
-                -- y=63に戻る
-                while pos.y < TARGET_Y do
-                    if not safe_up() then break end
-                end
-                return false
-            end
-            
-            -- 土を選択して配置
-            if select_dirt() then
-                -- 足元の既存ブロックを強制除去してから土を配置
-                turtle.digDown()
-                os.sleep(0.2)  -- 少し長めに待つ
-                if turtle.placeDown() then
-                    slog("Dirt placed at y=" .. (current_y - 1))
-                else
-                    slog("Failed to place dirt at y=" .. (current_y - 1))
-                end
-            end
-        else
-            -- 固体ブロックが見つかった場合、この列の処理終了
-            slog("Solid ground found at y=" .. (current_y - 1) .. ", stopping column")
-            break
-        end
-        
-        -- 一つ下に移動
+        -- まだ空洞なので一つ下に移動
         if not safe_down() then
-            slog("Cannot go deeper from y=" .. current_y)
+            slog("Cannot go deeper from y=" .. bottom_y)
             break
         end
-        current_y = current_y - 1
+        bottom_y = pos.y
         
-        -- bedrock到達チェック
-        if current_y < -64 then
-            slog("Bedrock level reached")
+        if bottom_y < -64 then
+            slog("Reached bedrock level")
+            break
+        end
+    end
+    
+    slog("Bottom found at y=" .. bottom_y .. ", starting fill-up")
+    
+    -- ステップ2: 底からy=62まで上に向かって埋める
+    slog("Step 2: Filling from bottom to y=62")
+    
+    while pos.y < FILL_Y do  -- y=62まで
+        slog("Filling level y=" .. pos.y)
+        
+        -- 土不足チェック
+        if not has_dirt() then
+            slog("No dirt left at y=" .. pos.y)
+            -- y=63に戻る
+            while pos.y < TARGET_Y do
+                if not safe_up() then break end
+            end
+            return false
+        end
+        
+        -- 現在位置に土を配置
+        if select_dirt() then
+            -- 現在位置のブロックを除去してから土を配置
+            turtle.dig()  -- 前方のブロックを掘る
+            os.sleep(0.2)
+            if turtle.place() then
+                slog("Dirt placed at y=" .. pos.y)
+            else
+                slog("Failed to place dirt at y=" .. pos.y)
+            end
+        end
+        
+        -- 一つ上に移動
+        if not safe_up() then
+            slog("Cannot move up from y=" .. pos.y)
             break
         end
         
         os.sleep(0.05)
     end
+    
+    slog("Fill complete, reached y=" .. pos.y)
     
     -- y=63に戻る
     slog("Returning to y=63")
