@@ -112,7 +112,10 @@ local function process_column(x, z)
         end
     end
     
-    return_to_63()  -- y=63確保
+    -- y=63にいることを確認（上昇はしない）
+    if position.y ~= 63 then
+        print("警告: y=63以外からの開始です。y=" .. position.y)
+    end
     
     -- 2. y=63は空気のまま（スキップ条件なし）
     -- y=62以下を全て土で埋める
