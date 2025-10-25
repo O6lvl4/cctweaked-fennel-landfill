@@ -232,19 +232,17 @@ local function process_col(x, z)
     
     slog("Bottom found at y=" .. bottom_y .. ", starting fill-up")
     
-    -- ステップ2: 底からy=62まで上に向かって埋める
-    slog("Step 2: Filling from bottom to y=62")
+    -- ステップ2: 底からy=63まで上に向かって埋める
+    slog("Step 2: Filling from bottom to y=63")
     
-    while pos.y < FILL_Y do  -- y=62まで
+    while pos.y < TARGET_Y do  -- y=63まで
         slog("Filling level y=" .. pos.y)
         
         -- 土不足チェック
         if not has_dirt() then
             slog("No dirt left at y=" .. pos.y)
-            -- y=63に戻る
-            while pos.y < TARGET_Y do
-                if not safe_up() then break end
-            end
+            -- 作業中断のため現在位置に留まる
+            slog("Work interrupted due to lack of dirt")
             return false
         end
         
@@ -271,12 +269,14 @@ local function process_col(x, z)
     
     slog("Fill complete, reached y=" .. pos.y)
     
-    -- y=63に戻る
-    slog("Returning to y=63")
-    while pos.y < TARGET_Y do
-        if not safe_up() then 
-            slog("Failed to return to y=63 from y=" .. pos.y)
-            break 
+    -- y=63を超えている場合は調整
+    if pos.y > TARGET_Y then
+        slog("Above y=63, moving back down")
+        while pos.y > TARGET_Y do
+            if not safe_down() then 
+                slog("Failed to return to y=63 from y=" .. pos.y)
+                break 
+            end
         end
     end
     
