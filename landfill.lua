@@ -8,20 +8,22 @@ local FILL_Y = 62
 -- ログ機能
 local LOG_FILE = "landfill.log"
 local function log(message)
-    local timestamp = os.date("%H:%M:%S")
+    local timestamp = textutils.formatTime(os.time(), false)
     local log_message = "[" .. timestamp .. "] " .. message
-    log(log_message)
+    print(log_message)
     
-    -- ファイルに書き込み
-    local file = fs.open(LOG_FILE, "a")
-    if file then
-        file.writeLine(log_message)
-        file.close()
+    -- ファイルに書き込み（CCTweaked形式）
+    if fs then
+        local file = fs.open(LOG_FILE, "a")
+        if file then
+            file.writeLine(log_message)
+            file.close()
+        end
     end
 end
 
 local function clear_log()
-    if fs.exists(LOG_FILE) then
+    if fs and fs.exists(LOG_FILE) then
         fs.delete(LOG_FILE)
     end
 end
