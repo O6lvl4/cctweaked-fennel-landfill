@@ -34,7 +34,7 @@ local function get_position()
     if commands and commands.getBlockPosition then
         local x, y, z = commands.getBlockPosition()
         if x and y and z then
-            log("エンダーモデムで座標取得: " .. x .. ", " .. y .. ", " .. z)
+            log("EnderModem position: " .. x .. ", " .. y .. ", " .. z)
             return {x = x, y = y, z = z}
         end
     end
@@ -253,7 +253,7 @@ local function process_column(x, z)
                 -- y=63に戻って補給（上昇のみ）
                 for i = 1, (TARGET_Y - current_y) do
                     if not safe_move(turtle.up) then
-                        log("上昇失敗")
+                        log("Ascent failed")
                         return false
                     end
                 end
@@ -261,7 +261,7 @@ local function process_column(x, z)
                 -- 元の位置に戻る（下降のみ）
                 for i = 1, (TARGET_Y - current_y) do
                     if not safe_move(turtle.down) then
-                        log("下降失敗")
+                        log("Descent failed")
                         return false
                     end
                 end
@@ -308,18 +308,18 @@ end
 -- メイン処理
 local function main()
     clear_log()
-    log("=== エンダーモデム対応整地システム ===")
-    log("範囲: (-1786,-143) から (-1287,356)")
+    log("=== EnderModem Landfill System ===")
+    log("Range: (-1786,-143) to (-1287,356)")
     
     -- 座標取得確認
     local pos = get_position()
     if not pos then
-        log("エラー: 座標を取得できません")
-        log("エンダーモデムまたはGPSサーバーが必要です")
+        log("Error: Cannot get position")
+        log("EnderModem or GPS server required")
         return
     end
     
-    log("開始位置: (" .. pos.x .. ", " .. pos.y .. ", " .. pos.z .. ")")
+    log("Start position: (" .. pos.x .. ", " .. pos.y .. ", " .. pos.z .. ")")
     
     -- 初期補給
     refill_dirt()
@@ -328,7 +328,7 @@ local function main()
     local total = 500 * 500
     
     for x = -1786, -1287 do
-        log("\nX=" .. x .. " 処理開始 (" .. (-1786 - x + 1) .. "/500)")
+        log("\nX=" .. x .. " processing start (" .. (-1786 - x + 1) .. "/500)")
         
         for z = -143, 356 do
             if process_column(x, z) then
@@ -338,26 +338,26 @@ local function main()
             -- 100列ごとに進捗表示
             if count % 100 == 0 then
                 local progress = math.floor((count / total) * 100)
-                log("進捗: " .. count .. "/" .. total .. " (" .. progress .. "%)")
+                log("Progress: " .. count .. "/" .. total .. " (" .. progress .. "%)")
             end
         end
         
-        log("X=" .. x .. " 完了 (累計: " .. count .. "列)")
+        log("X=" .. x .. " complete (total: " .. count .. " columns)")
     end
     
-    log("\n=== 整地作業完了 ===")
-    log("処理した列: " .. count .. "/" .. total)
-    log("完了率: " .. math.floor((count / total) * 100) .. "%")
+    log("\n=== Landfill operation complete ===")
+    log("Processed columns: " .. count .. "/" .. total)
+    log("Completion rate: " .. math.floor((count / total) * 100) .. "%")
 end
 
 -- 実行
 -- 実行開始メッセージ
 clear_log()
-log("エンダーモデム対応整地システム")
-log("エンダーモデムまたはGPSサーバーが必要です") 
-log("エンダーチェストをスロット1に配置")
-log("5秒後に開始...")
-log("ログファイル: " .. LOG_FILE .. " に保存中")
+log("EnderModem Landfill System")
+log("EnderModem or GPS server required") 
+log("Place EnderChest in slot 1")
+log("Starting in 5 seconds...")
+log("Log file: " .. LOG_FILE .. " saving")
 os.sleep(5)
 
 main()
