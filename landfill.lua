@@ -73,23 +73,44 @@ end
 -- エンダーチェストから土ブロック補給
 local function refill_dirt()
     print("土ブロックを補給中...")
-    -- エンダーチェストを設置
-    turtle.select(1)
-    turtle.placeUp()
     
-    -- エンダーチェストを開いて土を取得
+    -- 現在の位置を保存
+    local pos = get_position()
+    if not pos then
+        print("GPS信号が取得できません")
+        return false
+    end
+    
+    -- 安全な高度に移動して補給作業
+    teleport_to(pos.x, math.max(pos.y + 5, 100), pos.z)
+    
+    -- エンダーチェストを設置（スロット１にあることを前提）
+    turtle.select(1)
+    if not turtle.placeDown() then
+        print("エンダーチェストの設置に失敗")
+        return false
+    end
+    
+    -- エンダーチェストから土を取得
     for slot = 2, 16 do
         turtle.select(slot)
+        -- 余分なアイテムを預ける
         if turtle.getItemCount() > 0 then
-            turtle.dropUp(64)  -- 余分なアイテムを預ける
+            local item = turtle.getItemDetail()
+            if not (item and (string.find(item.name, "dirt") or string.find(item.name, "土") or string.find(item.name, "enderchest"))) then
+                turtle.dropDown(64)
+            end
         end
-        turtle.suckUp(64)     -- 土を取得
+        -- 土を取得
+        turtle.suckDown(64)
     end
     
     -- エンダーチェストを回収
     turtle.select(1)
-    turtle.digUp()
+    turtle.digDown()
+    
     print("補給完了")
+    return true
 end
 
 -- インベントリに土があるかチェック
@@ -120,15 +141,16 @@ end
 local function process_column(x, z)
     print("列処理開始: x=" .. x .. " z=" .. z)
     
-    -- y63の位置にテレポート
+    -- y63の位置にテレポート（足元をチェック）
     if not teleport_to(x, TARGET_Y, z) then
         print("テレポート失敗、列をスキップ")
         return false
     end
     
-    -- y63にブロックがあるかチェック
-    if detect_block("down") then
-        print("y63にブロック発見 (" .. x .. "," .. TARGET_Y .. "," .. z .. ")、列をスキップ")
+    -- y63の足元にブロックがあるかチェック（turtle.inspectDown()を使用）
+    local has_block_below, block_data = turtle.inspectDown()
+    if has_block_below then
+        print("y63の下にブロック発見 (" .. x .. "," .. (TARGET_Y-1) .. "," .. z .. ")、列をスキップ")
         return false
     end
     
@@ -136,8 +158,9 @@ local function process_column(x, z)
     for y = FILL_Y, 1, -1 do
         teleport_to(x, y, z)
         
-        -- 現在位置にブロックがない場合は土を配置
-        if not detect_block("down") then
+        -- 足元にブロックがあるかチェック
+        local has_block_here, _ = turtle.inspectDown()
+        if not has_block_here then
             -- 土が不足している場合は補給
             if not has_dirt() then
                 refill_dirt()
@@ -150,6 +173,10 @@ local function process_column(x, z)
                 end
             else
                 print("土ブロックが見つかりません")
+                refill_dirt()  -- 再補給を試行
+                if select_dirt() then
+                    place_block("down")
+                end
             end
         end
         
