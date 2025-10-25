@@ -42,21 +42,37 @@ local function face_direction(target)
     end
 end
 
--- 安全移動（強化版）
+-- 安全移動（たいまつ対策強化版）
 local function safe_forward()
     local attempts = 0
-    while attempts < 10 and not turtle.forward() do
-        -- ブロックを掘る
+    while attempts < 15 and not turtle.forward() do
+        -- 前方・上方・下方を完全掘削（たいまつ対策）
         turtle.dig()
-        -- 上のブロックも掘る（背の高いブロック対策）
         turtle.digUp()
-        -- 少し待つ
-        os.sleep(0.1)
+        turtle.digDown()
+        
+        -- たいまつドロップ処理のため長めに待機
+        os.sleep(0.5)
+        
+        -- インベントリ満杯チェック＆不要アイテム処理
+        for slot = 2, 16 do
+            turtle.select(slot)
+            local item = turtle.getItemDetail()
+            if item and (string.find(item.name, "torch") or 
+                        string.find(item.name, "stick") or
+                        string.find(item.name, "coal") or
+                        not string.find(item.name, "dirt")) then
+                -- たいまつ関連・土以外は捨てる
+                turtle.drop()
+                slog("Dropped item: " .. item.name)
+            end
+        end
+        
         attempts = attempts + 1
     end
     
-    if attempts >= 10 then
-        slog("Forward blocked after " .. attempts .. " attempts")
+    if attempts >= 15 then
+        slog("Forward blocked after " .. attempts .. " attempts (torch resistance?)")
         return false
     end
     
@@ -76,13 +92,16 @@ end
 
 local function safe_up()
     local attempts = 0
-    while attempts < 10 and not turtle.up() do
+    while attempts < 15 and not turtle.up() do
+        -- 上方向の完全掘削（たいまつ対策）
         turtle.digUp()
-        os.sleep(0.1)
+        turtle.dig()     -- 前方も掘る
+        turtle.digDown() -- 下方も掘る
+        os.sleep(0.5)    -- たいまつドロップ待機
         attempts = attempts + 1
     end
-    if attempts >= 10 then
-        slog("Up blocked after " .. attempts .. " attempts")
+    if attempts >= 15 then
+        slog("Up blocked after " .. attempts .. " attempts (torch resistance?)")
         return false
     end
     pos.y = pos.y + 1
@@ -91,13 +110,16 @@ end
 
 local function safe_down()
     local attempts = 0
-    while attempts < 10 and not turtle.down() do
+    while attempts < 15 and not turtle.down() do
+        -- 下方向の完全掘削（たいまつ対策）
         turtle.digDown()
-        os.sleep(0.1)
+        turtle.dig()     -- 前方も掘る
+        turtle.digUp()   -- 上方も掘る
+        os.sleep(0.5)    -- たいまつドロップ待機
         attempts = attempts + 1
     end
-    if attempts >= 10 then
-        slog("Down blocked after " .. attempts .. " attempts")
+    if attempts >= 15 then
+        slog("Down blocked after " .. attempts .. " attempts (torch resistance?)")
         return false
     end
     pos.y = pos.y - 1
@@ -254,17 +276,31 @@ local function process_col(x, z)
             break
         end
         
-        -- 移動後、足元（下）に土を配置
+        -- 移動後、足元（下）に土を配置（たいまつ対策付き）
         if select_dirt() then
-            -- 足元の既存ブロックを除去してから土を配置
-            turtle.digDown()  -- 下方のブロックを掘る
-            os.sleep(0.2)
+            -- 足元の完全掘削（たいまつ・ブロック除去）
+            turtle.digDown()
+            turtle.dig()     -- 前方のたいまつも除去
+            turtle.digUp()   -- 上方のたいまつも除去
+            os.sleep(0.5)    -- たいまつドロップ完了待機
             
-            if turtle.placeDown() then
-                slog("Dirt placed at y=" .. (pos.y - 1) .. " (level " .. i .. ")")
-                filled_count = filled_count + 1
-            else
-                slog("Failed to place dirt at y=" .. (pos.y - 1) .. " (level " .. i .. ")")
+            -- 不要アイテム除去（土以外）
+            for slot = 2, 16 do
+                turtle.select(slot)
+                local item = turtle.getItemDetail()
+                if item and not string.find(item.name, "dirt") then
+                    turtle.drop()
+                end
+            end
+            
+            -- 土を再選択して配置
+            if select_dirt() then
+                if turtle.placeDown() then
+                    slog("Dirt placed at y=" .. (pos.y - 1) .. " (level " .. i .. ")")
+                    filled_count = filled_count + 1
+                else
+                    slog("Failed to place dirt at y=" .. (pos.y - 1) .. " (level " .. i .. ")")
+                end
             end
         else
             slog("No dirt available at level " .. i)
