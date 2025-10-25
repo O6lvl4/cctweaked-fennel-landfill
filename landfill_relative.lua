@@ -213,54 +213,85 @@ local function refill_dirt()
     return true
 end
 
--- 指定座標の列処理
+-- 指定座標の列処理（シンプル版）
 local function process_column(relative_x, relative_z)
     print("列処理開始: x=" .. relative_x .. " z=" .. relative_z)
     
-    -- 目標高度に移動
+    -- 1. y63に移動
     if not move_to_relative(relative_x, TARGET_Y, relative_z) then
         print("移動失敗、列をスキップ")
         return false
     end
     
-    -- y63の足元にブロックがあるかチェック
+    -- 2. y63の下にブロックがあるかチェック
     local has_block_below, _ = turtle.inspectDown()
     if has_block_below then
         print("y63の下にブロック発見、列をスキップ")
         return false
     end
     
-    -- y62から下に向かって処理
-    for y = FILL_Y, 1, -1 do
-        move_to_relative(relative_x, y, relative_z)
+    -- 3. 底まで下りる（空洞を探す）
+    local bottom_y = TARGET_Y - 1  -- y62から開始
+    
+    -- 空洞の底を見つける
+    while bottom_y > 0 do
+        -- 一つ下に移動
+        if not safe_down() then
+            break
+        end
+        bottom_y = position.y
         
         -- 足元にブロックがあるかチェック
+        local has_ground, _ = turtle.inspectDown()
+        if has_ground then
+            print("底発見: y=" .. bottom_y)
+            break
+        end
+        
+        -- 深すぎる場合は中断
+        if bottom_y < -50 then
+            print("深すぎるため中断")
+            bottom_y = 0
+            break
+        end
+    end
+    
+    -- 4. 底からy62まで土で埋める
+    for target_y = bottom_y, FILL_Y do
+        -- 目標の高度に移動
+        while position.y < target_y do
+            safe_up()
+        end
+        while position.y > target_y do
+            safe_down()
+        end
+        
+        -- 足元にブロックがない場合は土を配置
         local has_block_here, _ = turtle.inspectDown()
         if not has_block_here then
             -- 土が不足している場合は補給
             if not has_dirt() then
+                print("土補給中...")
+                local current_pos = {x = position.x, y = position.y, z = position.z}
                 refill_dirt()
                 -- 元の位置に戻る
-                move_to_relative(relative_x, y, relative_z)
+                move_to_relative(current_pos.x, current_pos.y, current_pos.z)
             end
             
-            -- 土を選択して配置
+            -- 土を配置
             if select_dirt() then
-                if not place_block("down") then
-                    print("配置失敗: " .. relative_x .. " " .. y .. " " .. relative_z)
-                end
+                place_block("down")
+                print("土配置: y=" .. target_y)
             else
-                print("土ブロックが見つかりません")
-                refill_dirt()
-                move_to_relative(relative_x, y, relative_z)
-                if select_dirt() then
-                    place_block("down")
-                end
+                print("土ブロックがありません")
             end
         end
         
         os.sleep(0.05)
     end
+    
+    -- 5. y63に戻る
+    move_to_relative(relative_x, TARGET_Y, relative_z)
     
     return true
 end
