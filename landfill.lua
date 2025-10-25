@@ -29,10 +29,18 @@ end
 
 -- エンダータートル用テレポート移動
 local function teleport_to(x, y, z)
-    if turtle.teleport(x, y, z) then
-        return true
+    print("テレポート試行: " .. x .. ", " .. y .. ", " .. z)
+    if turtle.teleport then
+        if turtle.teleport(x, y, z) then
+            print("テレポート成功: " .. x .. ", " .. y .. ", " .. z)
+            return true
+        else
+            print("テレポート失敗: " .. x .. ", " .. y .. ", " .. z)
+            return false
+        end
     else
-        print("テレポート失敗: " .. x .. " " .. y .. " " .. z)
+        print("警告: エンダータートルではありません。通常移動を試行します")
+        -- 通常のタートルの場合は手動移動
         return false
     end
 end
@@ -205,39 +213,66 @@ local function main_leveling()
     print("=== エンダータートル整地システム開始 ===")
     print("範囲: x=" .. AREA.min_x .. "~" .. AREA.max_x .. " z=" .. AREA.min_z .. "~" .. AREA.max_z)
     
+    -- 現在位置確認
+    local start_pos = get_position()
+    if start_pos then
+        print("開始位置: " .. start_pos.x .. ", " .. start_pos.y .. ", " .. start_pos.z)
+    else
+        print("警告: GPS信号を取得できません")
+    end
+    
+    -- エンダータートル機能確認
+    if not turtle.teleport then
+        print("エラー: エンダータートルが必要です")
+        return
+    end
+    
     -- 初期補給
-    refill_dirt()
+    if not refill_dirt() then
+        print("エラー: 初期補給に失敗しました")
+        return
+    end
     
     local processed_columns = 0
     local skipped_columns = 0
+    local total_columns = (AREA.max_x - AREA.min_x + 1) * (AREA.max_z - AREA.min_z + 1)
+    
+    print("処理予定列数: " .. total_columns)
     
     -- X軸方向にループ
     for x = AREA.min_x, AREA.max_x do
-        print("X=" .. x .. " の処理開始 (" .. (x - AREA.min_x + 1) .. "/" .. (AREA.max_x - AREA.min_x + 1) .. ")")
+        print("\n=== X=" .. x .. " の処理開始 (" .. (x - AREA.min_x + 1) .. "/" .. (AREA.max_x - AREA.min_x + 1) .. ") ===")
         
         -- Z軸方向にループ
         for z = AREA.min_z, AREA.max_z do
-            -- Y63上のクリア（オプション）
-            -- clear_above_y63(x, z)
+            print("\n列 (" .. x .. ", " .. z .. ") 処理中...")
             
             -- 列処理
             if process_column(x, z) then
                 processed_columns = processed_columns + 1
+                print("✓ 列 (" .. x .. ", " .. z .. ") 処理完了")
             else
                 skipped_columns = skipped_columns + 1
+                print("✗ 列 (" .. x .. ", " .. z .. ") スキップ")
             end
             
-            -- 100列ごとに進捗表示
+            -- 10列ごとに進捗表示
+            if (processed_columns + skipped_columns) % 10 == 0 then
+                local progress = math.floor(((processed_columns + skipped_columns) / total_columns) * 100)
+                print("\n--- 進捗 " .. progress .. "% ---")
+                print("処理済み: " .. processed_columns .. " | スキップ: " .. skipped_columns .. " | 残り: " .. (total_columns - processed_columns - skipped_columns))
+            end
+            
+            -- 100列ごとに補給
             if (processed_columns + skipped_columns) % 100 == 0 then
-                print("進捗: 処理済み=" .. processed_columns .. " スキップ=" .. skipped_columns)
-                refill_dirt()  -- 定期的に補給
+                refill_dirt()
             end
         end
         
-        print("X=" .. x .. " 完了")
+        print("X=" .. x .. " 完了 (処理済み: " .. processed_columns .. ", スキップ: " .. skipped_columns .. ")")
     end
     
-    print("=== 整地完了 ===")
+    print("\n=== 整地完了 ===")
     print("処理した列: " .. processed_columns)
     print("スキップした列: " .. skipped_columns)
     print("合計: " .. (processed_columns + skipped_columns))
