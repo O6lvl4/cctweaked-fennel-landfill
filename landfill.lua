@@ -194,25 +194,25 @@ local function process_col(x, z)
     while current_y >= -64 do  -- bedrockまで
         slog("Checking y=" .. current_y)
         
-        -- 現在位置のブロックをチェック
-        local has_block, block_data = turtle.inspect()
+        -- 現在位置（足元）のブロックをチェック
+        local has_block_below, block_data = turtle.inspectDown()
         local is_solid = false
         
-        if has_block and block_data then
+        if has_block_below and block_data then
             -- 液体でない固体ブロックかチェック
             if not (string.find(block_data.name, "water") or 
                    string.find(block_data.name, "lava") or
                    string.find(block_data.name, "air")) then
                 is_solid = true
-                slog("Solid block found: " .. block_data.name .. " at y=" .. current_y)
+                slog("Solid block found below: " .. block_data.name .. " at y=" .. (current_y - 1))
             else
-                slog("Liquid/air found: " .. block_data.name .. " at y=" .. current_y)
+                slog("Liquid/air found below: " .. block_data.name .. " at y=" .. (current_y - 1))
             end
         else
-            slog("Air found at y=" .. current_y)
+            slog("Air found below at y=" .. (current_y - 1))
         end
         
-        -- 空気または液体の場合は土で埋める
+        -- 足元が空気または液体の場合は土で埋める
         if not is_solid then
             if not has_dirt() then
                 slog("No dirt left at y=" .. current_y)
@@ -225,15 +225,19 @@ local function process_col(x, z)
             
             -- 土を選択して配置
             if select_dirt() then
-                -- 既存ブロックを除去してから土を配置
-                turtle.dig()
+                -- 足元の既存ブロックを除去してから土を配置
+                turtle.digDown()
                 os.sleep(0.1)
-                if turtle.place() then
-                    slog("Dirt placed at y=" .. current_y)
+                if turtle.placeDown() then
+                    slog("Dirt placed below at y=" .. (current_y - 1))
                 else
-                    slog("Failed to place dirt at y=" .. current_y)
+                    slog("Failed to place dirt below at y=" .. (current_y - 1))
                 end
             end
+        else
+            -- 固体ブロックが見つかった場合、この列の処理終了
+            slog("Solid ground found, stopping column at y=" .. (current_y - 1))
+            break
         end
         
         -- 一つ下に移動
