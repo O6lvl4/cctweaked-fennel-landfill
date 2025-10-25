@@ -5,14 +5,27 @@
 local TARGET_Y = 63
 local FILL_Y = 62
 
--- GPS座標取得
+-- 座標取得（エンダーモデム/GPS対応）
 local function get_position()
+    -- 方法1: エンダーモデムで座標取得
+    if commands and commands.getBlockPosition then
+        local x, y, z = commands.getBlockPosition()
+        if x and y and z then
+            print("エンダーモデムで座標取得: " .. x .. ", " .. y .. ", " .. z)
+            return {x = x, y = y, z = z}
+        end
+    end
+    
+    -- 方法2: GPSで座標取得
     local x, y, z = gps.locate()
     if x and y and z then
+        print("GPSで座標取得: " .. x .. ", " .. y .. ", " .. z)
         return {x = x, y = y, z = z}
-    else
-        return nil
     end
+    
+    -- 両方失敗
+    print("座標取得失敗: エンダーモデムもGPSも利用できません")
+    return nil
 end
 
 -- 安全な移動
@@ -271,14 +284,14 @@ end
 
 -- メイン処理
 local function main()
-    print("=== GPS対応整地システム ===")
+    print("=== エンダーモデム対応整地システム ===")
     print("範囲: (-1786,-143) から (-1287,356)")
     
-    -- GPS確認
+    -- 座標取得確認
     local pos = get_position()
     if not pos then
-        print("エラー: GPS信号を取得できません")
-        print("GPSサーバーを設定してください")
+        print("エラー: 座標を取得できません")
+        print("エンダーモデムまたはGPSサーバーが必要です")
         return
     end
     
@@ -314,8 +327,8 @@ local function main()
 end
 
 -- 実行
-print("GPS対応整地システム")
-print("GPSサーバーを4台以上設置してください")
+print("エンダーモデム対応整地システム")
+print("エンダーモデムまたはGPSサーバーが必要です")
 print("エンダーチェストをスロット1に配置")
 print("5秒後に開始...")
 os.sleep(5)
