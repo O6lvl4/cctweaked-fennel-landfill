@@ -94,10 +94,18 @@ end
 
 -- 列処理（超シンプル）
 local function process_column(x, z)
-    print("列処理: (" .. x .. ", " .. z .. ")")
+    print("列処理開始: (" .. x .. ", " .. z .. ")")
+    print("現在位置: (" .. position.x .. ", " .. position.y .. ", " .. position.z .. ")")
     
     -- 1. 目標位置のy=63に移動
+    print("目標位置へ移動中...")
+    local move_count = 0
     while position.x ~= x or position.z ~= z do
+        move_count = move_count + 1
+        if move_count > 1000 then
+            print("移動ループが無限ループしています。中断。")
+            return false
+        end
         if position.x < x then
             face_direction(1); safe_forward()
         elseif position.x > x then
@@ -170,26 +178,35 @@ local function main()
     local count = 0
     local total = 500 * 500
     
-    for x = -1786, -1287 do  -- 500ブロック幅
-        for z = -143, 356 do     -- 500ブロック奥行
+    -- デバッグ用: 最初の3x3ブロックのみテスト
+    print("デバッグモード: 3x3ブロックのみテスト")
+    
+    for x = -1786, -1784 do  -- 3ブロック幅
+        for z = -143, -141 do   -- 3ブロック奥行
+            print("\n=== 列 (" .. x .. ", " .. z .. ") 処理開始 ===")
+            print("現在位置: (" .. position.x .. ", " .. position.y .. ", " .. position.z .. ")")
+            
             if process_column(x, z) then
                 count = count + 1
+                print("✓ 列 (" .. x .. ", " .. z .. ") 成功")
+            else
+                print("✗ 列 (" .. x .. ", " .. z .. ") 失敗/スキップ")
             end
             
-            -- 進捗表示
-            if count % 100 == 0 then
-                print("進捗: " .. count .. "/" .. total .. " (" .. math.floor(count/total*100) .. "%)")
-            end
+            print("処理後位置: (" .. position.x .. ", " .. position.y .. ", " .. position.z .. ")")
         end
-        print("X=" .. x .. " 完了")
+        print("\nX=" .. x .. " 完了")
     end
     
-    print("完了: " .. count .. "列処理")
+    print("\n=== デバッグテスト完了 ===")
+    print("成功した列: " .. count .. "/9")
+    print("最終位置: (" .. position.x .. ", " .. position.y .. ", " .. position.z .. ")")
 end
 
 -- 実行
 print("超シンプル整地システム")
 print("タートルを(-1786, 63, -143)に配置してください")
+print("デバッグモード: 3x3ブロックのみテスト")
 print("エンダーチェストをスロット１に配置")
 print("Ctrl+Tで停止")
 print("5秒後開始...")
