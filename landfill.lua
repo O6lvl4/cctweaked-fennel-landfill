@@ -186,50 +186,86 @@ local function refill_dirt()
     return true
 end
 
--- 列処理（GPS版）
+-- 列処理（GPS+相対移動ハイブリッド）
 local function process_column(x, z)
     print("列処理: (" .. x .. ", " .. z .. ")")
     
-    -- 1. y=63に移動
+    -- 1. y=63に移動（GPS使用）
     if not move_to_gps(x, TARGET_Y, z) then
         print("y=63移動失敗、スキップ")
         return false
     end
     
-    -- 2. y=62以下を全て埋める
-    for y = FILL_Y, -64, -1 do  -- y=62からbedrock上まで
-        if not move_to_gps(x, y, z) then
-            print("y=" .. y .. "移動失敗")
-            break
-        end
-        
-        -- 足元に土がない場合は配置
+    -- 2. y=62以下を垂直移動で埋める（GPS不要）
+    local current_y = TARGET_Y
+    
+    -- y=62に下りる
+    if not safe_move(turtle.down) then
+        print("初期下降失敗")
+        return false
+    end
+    current_y = current_y - 1
+    
+    -- y=62から下向きに埋め立て
+    for depth = 1, 126 do  -- y=62からy=-64まで
+        -- 足元にブロックがあるかチェック
         local has_block_below, _ = turtle.inspectDown()
         if not has_block_below then
+            -- 空洞なので土を配置
             if not has_dirt() then
-                print("土不足、y=" .. y .. "で中断")
-                -- y=63に戻って補給
-                move_to_gps(x, TARGET_Y, z)
+                print("土不足、y=" .. current_y .. "で中断")
+                -- y=63に戻って補給（上昇のみ）
+                for i = 1, (TARGET_Y - current_y) do
+                    if not safe_move(turtle.up) then
+                        print("上昇失敗")
+                        return false
+                    end
+                end
                 refill_dirt()
-                -- 元の位置に戻る
-                move_to_gps(x, y, z)
+                -- 元の位置に戻る（下降のみ）
+                for i = 1, (TARGET_Y - current_y) do
+                    if not safe_move(turtle.down) then
+                        print("下降失敗")
+                        return false
+                    end
+                end
             end
             
             if select_dirt() then
                 turtle.placeDown()
-                print("土配置: y=" .. (y-1))
+                print("土配置: y=" .. (current_y - 1))
             end
         else
-            -- ブロックがあるので、この深度では作業終了
-            print("ブロック発見、深度 y=" .. y .. " で終了")
+            -- ブロック発見、この深度で終了
+            print("ブロック発見、y=" .. current_y .. "で終了")
             break
         end
         
-        os.sleep(0.05)
+        -- 一つ下に移動
+        if not safe_move(turtle.down) then
+            print("下降失敗、底到達")
+            break
+        end
+        current_y = current_y - 1
+        
+        -- 深すぎる場合は中断
+        if current_y < -64 then
+            print("bedrock到達")
+            break
+        end
+        
+        os.sleep(0.02)
     end
     
-    -- 3. y=63に戻る
-    move_to_gps(x, TARGET_Y, z)
+    -- 3. y=63に戻る（上昇のみ）
+    while current_y < TARGET_Y do
+        if not safe_move(turtle.up) then
+            print("上昇失敗")
+            break
+        end
+        current_y = current_y + 1
+    end
+    
     return true
 end
 
